@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/recruiting"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o"
+    # If true, agent endpoints return canned data and never call OpenAI (good for local / CI).
+    mock_ai: bool = False
     upload_dir: Path = Path("uploads")
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 

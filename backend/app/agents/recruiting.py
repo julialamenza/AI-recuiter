@@ -5,7 +5,26 @@ from app.agents.models import CompareScreeningResult, ExtractedCandidateProfile,
 from app.config import settings
 
 
+def _use_mock_ai() -> bool:
+    if settings.mock_ai:
+        return True
+    return not (settings.openai_api_key or "").strip()
+
+
 async def extract_candidate_profile(cv_text: str) -> ExtractedCandidateProfile:
+    if _use_mock_ai():
+        snippet = (cv_text or "").strip().splitlines()[0][:120] if (cv_text or "").strip() else ""
+        return ExtractedCandidateProfile(
+            skills=["(mock)"],
+            seniority="unknown",
+            years_experience=None,
+            location=None,
+            salary_expectations=None,
+            confidence_notes=(
+                "Stub profile: MOCK_AI=true or OPENAI_API_KEY is empty — no LLM call. "
+                f"First line of CV (truncated): {snippet!r}"
+            ),
+        )
     client = get_openai_client()
     text = cv_text[:120_000]
     completion = await client.beta.chat.completions.parse(
@@ -32,6 +51,15 @@ async def extract_candidate_profile(cv_text: str) -> ExtractedCandidateProfile:
 
 
 async def structure_job_requirements(job_description: str) -> StructuredJobRequirements:
+    if _use_mock_ai():
+        snippet = (job_description or "").strip().splitlines()[0][:120] if (job_description or "").strip() else ""
+        return StructuredJobRequirements(
+            required_skills=["(mock)"],
+            preferred_skills=[],
+            seniority_level=f"unknown (stub, no LLM). JD preview: {snippet!r}",
+            location_policy=None,
+            comp_band=None,
+        )
     client = get_openai_client()
     text = job_description[:120_000]
     completion = await client.beta.chat.completions.parse(
@@ -62,6 +90,19 @@ async def compare_candidate_to_job(
     cv_excerpt: str,
     jd_excerpt: str,
 ) -> CompareScreeningResult:
+    if _use_mock_ai():
+        return CompareScreeningResult(
+            score=55,
+            reasons=[
+                "Stub screening: MOCK_AI=true or OPENAI_API_KEY is empty — no LLM comparison was run.",
+            ],
+            summary_markdown=(
+                "## Mock screening\n\n"
+                "This result is **synthetic** for local testing. "
+                "Set `OPENAI_API_KEY` and `MOCK_AI=false` (or unset) for real comparisons."
+            ),
+            model_recommendation="manual_review",
+        )
     client = get_openai_client()
     completion = await client.beta.chat.completions.parse(
         model=settings.openai_model,
